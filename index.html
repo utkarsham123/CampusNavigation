@@ -1,0 +1,369 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusNav | Smart Campus Navigation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      background: #071426;
+      color: #e2e8f0;
+      font-family: Arial, sans-serif;
+    }
+
+    .panel {
+      background: #10243b;
+      border: 1px solid #24415c;
+      border-radius: 18px;
+    }
+
+    .field {
+      width: 100%;
+      background: #0a1b2e;
+      border: 1px solid #36516b;
+      color: white;
+      padding: 12px;
+      border-radius: 10px;
+      outline: none;
+    }
+
+    .field:focus { border-color: #2dd4bf; }
+
+    .btn {
+      background: #0d9488;
+      color: white;
+      padding: 11px 17px;
+      border-radius: 10px;
+      font-weight: 600;
+      transition: .2s;
+    }
+
+    .btn:hover { background: #0f766e; }
+
+    .btn-secondary {
+      background: #243b53;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 9px;
+    }
+
+    .btn-secondary:hover { background: #36516b; }
+
+    .map-pin { cursor: pointer; }
+
+    .map-pin:hover circle {
+      stroke: #ffffff;
+      stroke-width: 5;
+    }
+
+    .map-pin text {
+      pointer-events: none;
+      user-select: none;
+    }
+
+    #campusSvg {
+      width: 100%;
+      display: block;
+      min-height: 300px;
+    }
+
+    .road-line {
+      stroke: #64748b;
+      stroke-width: 10;
+      stroke-linecap: round;
+      fill: none;
+    }
+
+    .blocked-road {
+      stroke: #ef4444;
+      stroke-dasharray: 8 7;
+    }
+
+    .route-line {
+      stroke: #2dd4bf;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <header class="border-b border-slate-700">
+    <div class="max-w-7xl mx-auto px-5 py-5 flex flex-wrap justify-between items-center gap-3">
+      <div>
+        <h1 class="text-2xl font-bold text-teal-300">CampusNav</h1>
+        <p class="text-sm text-slate-400">Smart Campus Navigation System</p>
+      </div>
+
+      <span class="text-sm bg-teal-900 text-teal-200 px-4 py-2 rounded-full">
+        ● System Online
+      </span>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-5 space-y-6">
+
+    <!-- HERO -->
+    <section class="py-5">
+      <p class="text-teal-300 text-sm font-semibold">
+        SMART CAMPUS SOLUTION
+      </p>
+
+      <h2 class="text-3xl md:text-4xl font-bold mt-2">
+        Find Your Route <span class="text-teal-300">Easily.</span>
+      </h2>
+
+      <p class="text-slate-400 mt-2">
+        Navigate campus locations using shortest-path calculation.
+      </p>
+    </section>
+
+    <!-- STATS -->
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+      <div class="panel p-5">
+        <p class="text-slate-400 text-sm">Campus Locations</p>
+        <h3 id="locationCount" class="text-3xl font-bold text-teal-300 mt-2">5</h3>
+      </div>
+
+      <div class="panel p-5">
+        <p class="text-slate-400 text-sm">Total Roads</p>
+        <h3 id="roadCount" class="text-3xl font-bold text-teal-300 mt-2">5</h3>
+      </div>
+
+      <div class="panel p-5">
+        <p class="text-slate-400 text-sm">Blocked Roads</p>
+        <h3 id="blockedCount" class="text-3xl font-bold text-red-300 mt-2">0</h3>
+      </div>
+
+    </section>
+
+    <!-- ROUTE PLANNER -->
+    <section class="panel p-6">
+
+      <h2 class="text-xl font-bold text-teal-300">Route Planner</h2>
+
+      <p class="text-sm text-slate-400 mt-1">
+        Select your starting point and destination.
+      </p>
+
+      <div class="grid md:grid-cols-2 gap-5 mt-5">
+
+        <div>
+          <label class="text-sm block mb-2">Starting Location</label>
+          <select id="startLocation" class="field"></select>
+        </div>
+
+        <div>
+          <label class="text-sm block mb-2">Destination</label>
+          <select id="endLocation" class="field"></select>
+        </div>
+
+      </div>
+
+      <div class="flex flex-wrap gap-3 mt-5">
+        <button id="findRoute" class="btn">
+          Find Shortest Route
+        </button>
+
+        <button id="resetRoads" class="btn-secondary">
+          Reset Roads
+        </button>
+      </div>
+
+      <div id="routeResult" class="mt-5 hidden rounded-xl bg-slate-900 p-5">
+
+        <p class="text-teal-300 font-semibold">Route Found</p>
+
+        <p id="routePath" class="mt-3 text-lg font-semibold"></p>
+
+        <div class="flex flex-wrap gap-6 mt-4 text-sm">
+          <p>
+            Distance:
+            <strong id="routeDistance" class="text-teal-300"></strong>
+          </p>
+
+          <p>
+            Walking Time:
+            <strong id="routeTime" class="text-teal-300"></strong>
+          </p>
+        </div>
+
+      </div>
+
+      <p id="routeError" class="text-red-300 mt-4 hidden"></p>
+
+    </section>
+
+    <!-- INTERACTIVE CAMPUS MAP -->
+    <section class="panel p-6">
+
+      <div class="flex flex-wrap justify-between items-center gap-3">
+
+        <div>
+          <h2 class="text-xl font-bold text-teal-300">
+            Interactive Campus Map
+          </h2>
+
+          <p class="text-sm text-slate-400 mt-1">
+            Click any location pin to select your destination.
+          </p>
+        </div>
+
+        <span class="text-xs text-teal-300">
+          ● Live Map
+        </span>
+
+      </div>
+
+      <div class="mt-5 rounded-xl overflow-hidden border border-slate-700"
+           style="background:#0a1b2e">
+
+        <svg id="campusSvg" viewBox="0 0 800 440"
+             xmlns="http://www.w3.org/2000/svg">
+
+          <rect width="800" height="440" fill="#0a1b2e"/>
+
+          <rect x="20" y="20" width="760" height="400"
+                rx="25" fill="#12352f"
+                stroke="#245b4c"
+                stroke-dasharray="8 5"/>
+
+          <text x="400" y="48" text-anchor="middle"
+                fill="#6ee7b7" font-size="15">
+            CAMPUS AREA
+          </text>
+
+          <g id="mapRoads"></g>
+          <g id="mapRoute"></g>
+          <g id="mapLocations"></g>
+
+        </svg>
+
+      </div>
+
+      <div class="flex flex-wrap gap-4 mt-4 text-xs text-slate-400">
+        <span>🟢 Campus Location</span>
+        <span>🟦 Selected Route</span>
+        <span>⚪ Open Road</span>
+        <span>🔴 Blocked Road</span>
+      </div>
+
+      <p id="mapMessage" class="text-sm text-teal-300 mt-3">
+        Select a map pin to choose your destination.
+      </p>
+
+    </section>
+
+    <!-- ADD LOCATION -->
+    <section class="panel p-6">
+
+      <h2 class="text-xl font-bold text-teal-300">
+        Add New Location
+      </h2>
+
+      <p class="text-sm text-slate-400 mt-1">
+        Add a new campus location and connect it with another location.
+      </p>
+
+      <div class="grid md:grid-cols-3 gap-4 mt-5">
+
+        <div>
+          <label class="text-sm block mb-2">Location Name</label>
+          <input id="newLocation" class="field"
+                 placeholder="e.g. Auditorium">
+        </div>
+
+        <div>
+          <label class="text-sm block mb-2">Connect With</label>
+          <select id="connectLocation" class="field"></select>
+        </div>
+
+        <div>
+          <label class="text-sm block mb-2">Distance (metres)</label>
+          <input id="newDistance" type="number"
+                 min="1" class="field" placeholder="e.g. 100">
+        </div>
+
+      </div>
+
+      <button id="addLocation" class="btn mt-5">
+        + Add Location
+      </button>
+
+      <p id="addMessage" class="text-sm mt-3"></p>
+
+    </section>
+
+    <!-- ROAD MANAGEMENT -->
+    <section class="panel p-6">
+
+      <h2 class="text-xl font-bold text-teal-300">
+        Road Management
+      </h2>
+
+      <p class="text-sm text-slate-400 mt-1">
+        Block or unblock roads to test alternate routes.
+      </p>
+
+      <div id="roadList" class="grid md:grid-cols-2 gap-3 mt-5"></div>
+
+    </section>
+
+    <!-- CAMPUS FACILITIES -->
+    <section class="panel p-6">
+
+      <h2 class="text-xl font-bold text-teal-300">
+        Campus Facilities
+      </h2>
+
+      <div class="grid sm:grid-cols-3 gap-4 mt-5">
+
+        <div class="bg-slate-900 p-4 rounded-xl">
+          <div class="text-2xl">📚</div>
+          <h3 class="font-semibold mt-2">Stationery Shop</h3>
+          <p class="text-xs text-slate-400 mt-1">
+            Books and college supplies
+          </p>
+        </div>
+
+        <div class="bg-slate-900 p-4 rounded-xl">
+          <div class="text-2xl">🛡️</div>
+          <h3 class="font-semibold mt-2">Security Office</h3>
+          <p class="text-xs text-slate-400 mt-1">
+            Campus security support
+          </p>
+        </div>
+
+        <div class="bg-slate-900 p-4 rounded-xl">
+          <div class="text-2xl">🅿️</div>
+          <h3 class="font-semibold mt-2">Parking Area</h3>
+          <p class="text-xs text-slate-400 mt-1">
+            Vehicle parking facility
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+    <footer class="text-center text-slate-500 text-sm py-5">
+      CampusNav | Smart Campus Navigation Project |
+      UTKARSHA MARBATE| CM25119
+    </footer>
+
+  </main>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
